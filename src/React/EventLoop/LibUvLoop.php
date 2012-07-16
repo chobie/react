@@ -53,6 +53,11 @@ class LibUvLoop implements LoopInterface
 
     private function addStream($stream, $listener, $flags)
     {
+        if (get_resource_type($stream) == "Unknown") {
+            error_log("Unknown resource handle passed. something wrong");
+            var_dump(debug_backtrace());
+            return false;
+        }
         $listener = $this->wrapStreamListener($stream, $listener, $flags);
 
         $event = \uv_poll_init($this->loop, $stream);
@@ -103,9 +108,9 @@ class LibUvLoop implements LoopInterface
     private function createTimer($interval, $callback, $periodic)
     {
         $timer = \uv_timer_init($this->loop);
-        $signature = spl_object_hash($timer);
+        $signature = (int)$timer;
         $callback = $this->wrapTimerCallback($signature, $callback, $periodic);
-        \uv_timer_start($timer, $interval, $periodic, $callback);
+        \uv_timer_start($timer, $interval*10000, $periodic*10000, $callback);
 
         $this->timers[$signature] = $timer;
         return $signature;
@@ -115,11 +120,11 @@ class LibUvLoop implements LoopInterface
     {
         $loop = $this;
 
-        return function ($event) use ($signature, $callback, $periodic, $loop) {
+        return function ($timer, $status) use ($signature, $callback, $periodic, $loop) {
             call_user_func($callback, $signature, $loop);
 
             if (!$periodic) {
-                $loop->cancelTimer($signature);
+                \uv_timer_stop($signature);
             }
         };
     }
