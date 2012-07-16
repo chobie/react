@@ -9,6 +9,10 @@ class Factory
 {
     public static function create()
     {
+        if (function_exists(('uv_run'))) {
+            return new LibUvLoop();
+        }
+
         if (function_exists('event_base_new')) {
             return new LibEventLoop();
         }
